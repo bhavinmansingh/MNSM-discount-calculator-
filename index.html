@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tonnage Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d26;
+    --card:     #20242f;
+    --border:   #2a2e3d;
+    --muted:    #44495a;
+    --text:     #d0d4e0;
+    --label:    #7a8090;
+    --lime:     #c8f135;
+    --lime-dim: #6a8010;
+    --amber:    #f5c842;
+    --red:      #ff5a5a;
+    --green:    #52c97a;
+    --white:    #ffffff;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px 48px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--lime);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  /* ── INPUT PANEL ── */
+  .input-panel {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+  }
+  .input-panel h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--label);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--label);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    color: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: var(--lime); }
+  .field input::placeholder { color: var(--muted); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; }
+  .btn {
+    flex: 1; padding: 13px; border: none; border-radius: 8px;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+    font-weight: 700; cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-calc { background: var(--lime); color: #0f1117; }
+  .btn-calc:hover { opacity: 0.88; }
+  .btn-reset { background: var(--border); color: var(--label); }
+  .btn-reset:hover { background: var(--muted); color: var(--text); }
+
+  /* ── RESULT FULL-SCREEN MODAL ── */
+  #resultModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8,10,14,0.95);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  #resultModal.open { display: flex; }
+
+  .result-sheet {
+    width: 100%;
+    max-width: 520px;
+    animation: slideUp 0.22s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* formula bar at top */
+  .formula-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 18px;
+    margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--label);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .formula-bar .f-num  { color: var(--lime); font-weight: 600; }
+  .formula-bar .f-arr  { color: var(--muted); }
+  .formula-bar .f-res  { color: var(--amber); font-weight: 700; }
+
+  /* action bar */
+  .action-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ab-btn {
+    flex: 1; padding: 12px; border: none; border-radius: 8px;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+    font-weight: 600; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 7px;
+    transition: opacity 0.15s;
+  }
+  .ab-btn:hover { opacity: 0.85; }
+  .ab-back  { background: var(--card); color: var(--label); border: 1px solid var(--border); }
+  .ab-print { background: var(--lime); color: #0f1117; }
+
+  /* card rows */
+  .calc-cards { display: flex; flex-direction: column; gap: 4px; }
+
+  .c-card {
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .c-card .c-left {}
+  .c-card .c-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .c-card .c-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .c-card .c-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  /* card colour variants */
+  .card-gross    { background: #1e2235; color: var(--white); }
+  .card-gross    .c-val { color: var(--white); }
+
+  .card-rounded  { background: #1e2a1e; color: var(--white); border-top: 2px solid var(--lime); }
+  .card-rounded  .c-val { color: var(--lime); }
+
+  .card-deduct   { background: #2a1a1a; color: var(--white); border-top: 2px solid var(--red); }
+  .card-deduct   .c-val { color: var(--red); }
+
+  .card-net      { background: #1e2a1e; color: var(--white); border-top: 2px solid var(--lime); }
+  .card-net      .c-val { color: var(--lime); font-size: 28px; }
+
+  .card-penalty  { background: #2a1414; color: var(--white); border-top: 2px solid #ff3333; }
+  .card-penalty  .c-val { color: #ff6060; }
+
+  .card-grand    {
+    background: linear-gradient(135deg, #1a2800 0%, #0f1a00 100%);
+    border: 2px solid var(--lime);
+    border-radius: 12px;
+    margin-top: 6px;
+  }
+  .card-grand    .c-title { color: var(--lime); font-size: 15px; }
+  .card-grand    .c-val   { color: var(--lime); font-size: 32px; }
+
+  /* ── PRINT MODAL ── */
+  #printModal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82); z-index: 100;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  #printModal.open { display: flex; }
+
+  .print-popup {
+    background: #fff; color: #111; border-radius: 8px;
+    width: 420px; max-width: 95vw; max-height: 90vh;
+    overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .print-popup-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid #e0e0e0;
+  }
+  .print-popup-header h3 { font-size: 15px; font-weight: 600; }
+  .print-popup-header .close-btn {
+    background: none; border: none; font-size: 20px;
+    cursor: pointer; color: #666; line-height: 1; padding: 0 4px;
+  }
+  .print-popup-actions {
+    display: flex; gap: 10px; padding: 14px 20px;
+    border-bottom: 1px solid #e0e0e0; justify-content: flex-end;
+  }
+  .pp-btn { padding: 8px 18px; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+  .pp-btn-print { background: #1a1d23; color: #c8f135; }
+  .pp-btn-print:hover { opacity: 0.85; }
+  .pp-btn-close { background: #eee; color: #333; }
+
+  #printContent { padding: 28px 28px 20px; font-family: 'IBM Plex Mono', monospace; }
+  .pc-title { text-align: center; font-family: 'IBM Plex Sans', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .pc-sub { text-align: center; font-size: 10px; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .pc-divider { border: none; border-top: 1px dashed #ccc; margin: 12px 0; }
+  .pc-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+  .pc-row .lbl { color: #555; }
+  .pc-section { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; margin: 10px 0 4px; }
+  .pc-total-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; padding: 4px 0; }
+  .pc-grand { border: 2px solid #111; border-radius: 4px; padding: 10px 12px; display: flex; justify-content: space-between; margin-top: 12px; font-size: 15px; font-weight: 700; }
+  .pc-penalty { border: 1px solid #c00; border-radius: 4px; padding: 8px 12px; margin-top: 8px; font-size: 12px; color: #c00; }
+
+  @media print {
+    body > *:not(#printModal) { display: none !important; }
+    #printModal { display: flex !important; background: none !important; position: static !important; }
+    .print-popup { box-shadow: none !important; border-radius: 0 !important; width: 100% !important; max-height: none !important; }
+    .print-popup-header, .print-popup-actions { display: none !important; }
+    #printContent { padding: 0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Weighbridge Calculation Tool</div>
+  <h1>Tonnage Rate Calculator</h1>
+</header>
+
+<!-- INPUT FORM -->
+<div class="input-panel">
+  <h2>Enter Values</h2>
+  <div class="field">
+    <label>Tonnage (tonnes)</label>
+    <input type="number" id="inp-tonnage" placeholder="e.g. 23.76" min="0" step="any">
+  </div>
+  <div class="field">
+    <label>Rate (₹ per tonne)</label>
+    <input type="number" id="inp-rate" placeholder="e.g. 450" min="0" step="any">
+  </div>
+  <div class="field">
+    <label>Shortage (kg)</label>
+    <input type="number" id="inp-shortage" placeholder="e.g. 120" min="0" step="any">
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-calc" onclick="calculate()">⊞ Calculate</button>
+    <button class="btn btn-reset" onclick="resetAll()">✕ Reset</button>
+  </div>
+</div>
+
+<!-- FULL-SCREEN RESULT MODAL -->
+<div id="resultModal">
+  <div class="result-sheet">
+
+    <!-- formula bar -->
+    <div class="formula-bar" id="formulaBar"></div>
+
+    <!-- back + print -->
+    <div class="action-bar">
+      <button class="ab-btn ab-back" onclick="closeResult()">← Back</button>
+      <button class="ab-btn ab-print" onclick="openPrint()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print Receipt
+      </button>
+    </div>
+
+    <!-- cards -->
+    <div class="calc-cards" id="calcCards"></div>
+  </div>
+</div>
+
+<!-- PRINT MODAL -->
+<div id="printModal">
+  <div class="print-popup">
+    <div class="print-popup-header">
+      <h3>Print Preview</h3>
+      <button class="close-btn" onclick="closePrint()">×</button>
+    </div>
+    <div class="print-popup-actions">
+      <button class="pp-btn pp-btn-close" onclick="closePrint()">Close</button>
+      <button class="pp-btn pp-btn-print" onclick="window.print()">🖨 Print</button>
+    </div>
+    <div id="printContent"></div>
+  </div>
+</div>
+
+<script>
+  let lastResult = null;
+
+  function fmtR(n) {
+    // rounded to nearest whole number, Indian locale
+    return Math.round(n).toLocaleString('en-IN');
+  }
+  function fmt2(n) {
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function calculate() {
+    const tonnage  = parseFloat(document.getElementById('inp-tonnage').value);
+    const rate     = parseFloat(document.getElementById('inp-rate').value);
+    const shortage = parseFloat(document.getElementById('inp-shortage').value);
+
+    if (isNaN(tonnage) || isNaN(rate) || isNaN(shortage)) {
+      alert('Please fill in all three fields.');
+      return;
+    }
+    if (tonnage <= 0 || rate <= 0 || shortage < 0) {
+      alert('Tonnage and rate must be positive. Shortage must be 0 or more.');
+      return;
+    }
+
+    const halfPercent  = tonnage * 1000 * 0.005;   // 0.5% of tonnage in kg
+    const case2        = shortage > halfPercent;
+
+    const shortageT    = shortage / 1000;           // shortage converted to tonnes
+    const adjTonnage   = tonnage - shortageT;
+    const adjTonnes    = adjTonnage;
+    const grossAmount  = adjTonnes * rate;
+    const deduction    = grossAmount * 0.03;
+    const netPayable   = grossAmount - deduction;
+
+    let penaltyAmt = null;
+    let grandTotal = netPayable;
+    if (case2) {
+      penaltyAmt = shortage * 5;
+      grandTotal = netPayable - penaltyAmt;
+    }
+
+    lastResult = { tonnage, rate, shortage, shortageT, halfPercent, case2,
+                   adjTonnage, adjTonnes, grossAmount,
+                   deduction, netPayable, penaltyAmt, grandTotal };
+
+    renderSheet(lastResult);
+  }
+
+  function renderSheet(r) {
+    // formula bar
+    document.getElementById('formulaBar').innerHTML =
+      `<span class="f-num">${fmt2(r.adjTonnes)} MT</span>
+       <span class="f-arr">×</span>
+       <span class="f-num">₹${fmt2(r.rate)}</span>
+       <span class="f-arr">=</span>
+       <span class="f-res">₹ ${fmt2(r.grossAmount)}</span>`;
+
+    // cards
+    const cards = document.getElementById('calcCards');
+    cards.innerHTML = `
+      <div class="c-card card-gross">
+        <div class="c-left">
+          <div class="c-title">Gross Total</div>
+          <div class="c-sub">Weight × Rate</div>
+        </div>
+        <div class="c-val">₹ ${fmt2(r.grossAmount)}</div>
+      </div>
+
+      <div class="c-card card-deduct">
+        <div class="c-left">
+          <div class="c-title">3% Deduction</div>
+          <div class="c-sub">3% of Gross Total</div>
+        </div>
+        <div class="c-val">− ${fmt2(r.deduction)}</div>
+      </div>
+
+      <div class="c-card card-net">
+        <div class="c-left">
+          <div class="c-title">Net Payable</div>
+          <div class="c-sub">Gross − 3%</div>
+        </div>
+        <div class="c-val">₹ ${fmt2(r.netPayable)}</div>
+      </div>
+
+      ${r.case2 ? `
+      <div class="c-card card-penalty">
+        <div class="c-left">
+          <div class="c-title">Shortage Penalty</div>
+          <div class="c-sub">${fmtR(r.shortage)} kg × 5</div>
+        </div>
+        <div class="c-val">− ${fmt2(r.penaltyAmt)}</div>
+      </div>
+      ` : ''}
+
+      <div class="c-card card-grand">
+        <div class="c-left">
+          <div class="c-title">Grand Total</div>
+          <div class="c-sub">${r.case2 ? 'Net Payable − Penalty' : 'Final Amount Payable'}</div>
+        </div>
+        <div class="c-val">₹ ${fmt2(r.grandTotal)}</div>
+      </div>
+    `;
+
+    document.getElementById('resultModal').classList.add('open');
+  }
+
+  function closeResult() {
+    document.getElementById('resultModal').classList.remove('open');
+  }
+
+  function openPrint() {
+    if (!lastResult) return;
+    const r = lastResult;
+    const now = new Date().toLocaleString('en-IN');
+
+    document.getElementById('printContent').innerHTML = `
+      <div class="pc-title">Tonnage Rate Calculator</div>
+      <div class="pc-sub">Receipt · ${now}</div>
+      <hr class="pc-divider">
+      <div class="pc-section">Inputs</div>
+      <div class="pc-row"><span class="lbl">Tonnage</span><span>${fmt2(r.tonnage)} t</span></div>
+      <div class="pc-row"><span class="lbl">Rate</span><span>Rs. ${fmtR(r.rate)} / tonne</span></div>
+      <div class="pc-row"><span class="lbl">Shortage</span><span>${fmtR(r.shortage)} kg</span></div>
+      <div class="pc-row"><span class="lbl">Adjusted Weight</span><span>${fmt2(r.adjTonnes)} MT</span></div>
+      <hr class="pc-divider">
+      <div class="pc-section">Calculation</div>
+      <div class="pc-row"><span class="lbl">Gross Total</span><span>Rs. ${fmt2(r.grossAmount)}</span></div>
+      <div class="pc-row"><span class="lbl">3% Deduction</span><span>- Rs. ${fmt2(r.deduction)}</span></div>
+      <hr class="pc-divider">
+      <div class="pc-total-row"><span>Net Payable</span><span>Rs. ${fmt2(r.netPayable)}</span></div>
+      ${r.case2 ? `
+      <div class="pc-penalty">
+        Shortage Penalty (${fmtR(r.shortage)} kg × 5) : − Rs. ${fmt2(r.penaltyAmt)}
+      </div>` : ''}
+      <div class="pc-grand">
+        <span>GRAND TOTAL</span>
+        <span>Rs. ${fmt2(r.grandTotal)}</span>
+      </div>
+    `;
+
+    document.getElementById('printModal').classList.add('open');
+  }
+
+  function closePrint() {
+    document.getElementById('printModal').classList.remove('open');
+  }
+
+  function resetAll() {
+    document.getElementById('inp-tonnage').value = '';
+    document.getElementById('inp-rate').value = '';
+    document.getElementById('inp-shortage').value = '';
+    lastResult = null;
+    closeResult();
+  }
+
+  document.getElementById('resultModal').addEventListener('click', function(e) {
+    if (e.target === this) closeResult();
+  });
+  document.getElementById('printModal').addEventListener('click', function(e) {
+    if (e.target === this) closePrint();
+  });
+</script>
+</body>
+</html>
